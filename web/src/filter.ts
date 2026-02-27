@@ -196,6 +196,11 @@ function message_matches_search_term(message: Message, term: NarrowTerm): boolea
             }
             return operand_ids.every((operand_id) => user_ids.includes(operand_id));
         }
+
+        case "file-content": {
+            //  TODO: Return true if file content contains term.operand 
+            return false;
+        }
     }
 
     // We will never get here since operator type validation would fail.

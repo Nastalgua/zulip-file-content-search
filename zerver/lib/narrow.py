@@ -314,6 +314,7 @@ class NarrowBuilder:
             # operator is removed.
             "pm_with": self.by_dm,
             "group_pm_with": self.by_group_pm_with,
+            "file_content": self.by_file_content
         }
         self.is_channel_narrow = False
         self.is_dm_narrow = False
@@ -744,6 +745,9 @@ class NarrowBuilder:
             column("recipient_id", Integer).in_(recipient_ids),
         )
         return query.where(maybe_negate(cond))
+
+    def by_file_content(self, query: Select, operand: str, maybe_negate: ConditionTransform) -> Select:
+        raise NotImplementedError("Search by file content not implemented")
 
     def by_search(self, query: Select, operand: str, maybe_negate: ConditionTransform) -> Select:
         if settings.USING_PGROONGA:
