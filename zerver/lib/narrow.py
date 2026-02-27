@@ -301,6 +301,7 @@ class NarrowBuilder:
             "id": self.by_id,
             "search": self.by_search,
             "dm": self.by_dm,
+            "file-content": self.by_file_content,
             # "pm-with:" is a legacy alias for "dm:"
             "pm-with": self.by_dm,
             "dm-including": self.by_dm_including,
@@ -314,7 +315,6 @@ class NarrowBuilder:
             # operator is removed.
             "pm_with": self.by_dm,
             "group_pm_with": self.by_group_pm_with,
-            "file_content": self.by_file_content
         }
         self.is_channel_narrow = False
         self.is_dm_narrow = False
