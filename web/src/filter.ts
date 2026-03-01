@@ -391,7 +391,7 @@ export class Filter {
             return terms;
         }
 
-        for (const token of matches) {
+        for (const [index, token] of matches.entries()) {
             let operator;
             const parts = token.split(":");
             if (token.startsWith('"') || parts.length === 1) {
@@ -435,9 +435,25 @@ export class Filter {
                     // terms list. This is done so that the last active filter is correctly
                     // detected by the `get_search_result` function (in search_suggestions.ts).
                     maybe_add_search_terms();
+                    const canonical_operator = filter_util.canonicalize_operator(parsed_operator.data);
+                    if (canonical_operator === "file-content") {
+                        // For file-content, treat all remaining text in the input as part of
+                        // the operand so users can keep typing free-form content (with spaces)
+                        // until they explicitly exit this token in the UI.
+                        const remaining_text = matches.slice(index + 1).join(" ");
+                        if (remaining_text !== "") {
+                            operand = `${operand} ${remaining_text}`.trim();
+                        }
+                        terms.push({
+                            negated,
+                            operator: canonical_operator,
+                            operand,
+                        });
+                        return terms;
+                    }
                     term = {
                         negated,
-                        operator: filter_util.canonicalize_operator(parsed_operator.data),
+                        operator: canonical_operator,
                         operand,
                     };
                     terms.push(term);
@@ -557,6 +573,7 @@ export class Filter {
             case "channels":
                 return channels_operands.has(term.operand);
             case "topic":
+            case "file-content":
                 return true;
             case "sender":
                 return people.is_valid_user_id(term.operand);
@@ -633,6 +650,7 @@ export class Filter {
             "topic",
             "dm",
             "dm-including",
+            "file-content",
             "with",
             "sender",
             "near",
@@ -709,6 +727,9 @@ export class Filter {
 
             case "in":
                 return verb + "messages in";
+
+            case "file-content":
+                return verb + "file content";
 
             // Note: We hack around using this in "describe" below.
             case "is":

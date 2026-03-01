@@ -107,6 +107,25 @@ test("basic_get_suggestions", ({override}) => {
     assert.deepEqual(suggestions.strings, expected);
 });
 
+test("file_content_operator_suggestions", ({override}) => {
+    override(narrow_state, "stream_id", noop);
+
+    let suggestions = get_suggestions("file-content");
+    assert.deepEqual(suggestions.strings, ["file-content", "file-content:"]);
+
+    suggestions = get_suggestions("content");
+    assert.deepEqual(suggestions.strings, ["content", "file-content:"]);
+
+    suggestions = get_suggestions("file-content:matrix mu");
+    assert.deepEqual(suggestions.strings, ["file-content:matrix mu"]);
+
+    suggestions = get_suggestions("file-content:mat has:link");
+    assert.deepEqual(suggestions.strings, ["file-content:mat has:link"]);
+
+    suggestions = get_suggestions("dsd", "file-content:timee");
+    assert.deepEqual(suggestions.strings, ["file-content:timee dsd"]);
+});
+
 test("basic_get_suggestions_for_spectator", () => {
     page_params.is_spectator = true;
     const web_public_id = new_stream_id();

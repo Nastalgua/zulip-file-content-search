@@ -59,6 +59,7 @@ const descriptions: Record<string, string> = {
     "has:image": "messages with images",
     "has:attachment": "messages with attachments",
     "has:reaction": "messages with reactions",
+    "file-content:": "search file contents",
 };
 
 const incompatible_patterns: Partial<Record<NarrowTerm["operator"], TermPattern[]>> &
@@ -75,7 +76,8 @@ const incompatible_patterns: Partial<Record<NarrowTerm["operator"], TermPattern[
         | "has:link"
         | "has:image"
         | "has:attachment"
-        | "has:reaction",
+        | "has:reaction"
+        | "file-content",
         TermPattern[]
     > = {
     channel: channel_incompatible_patterns,
@@ -141,6 +143,7 @@ const incompatible_patterns: Partial<Record<NarrowTerm["operator"], TermPattern[
     "has:image": [{operator: "has", operand: "image"}],
     "has:attachment": [{operator: "has", operand: "attachment"}],
     "has:reaction": [{operator: "has", operand: "reaction"}],
+    "file-content": [{operator: "file-content"}],
 };
 
 // TODO: We have stripped suggestion of all other attributes, we should now
@@ -842,6 +845,19 @@ function get_has_filter_suggestions(
     return get_special_filter_suggestions(last, terms, suggestions);
 }
 
+function get_file_content_filter_suggestions(
+    last: NarrowCanonicalTermSuggestion,
+    terms: NarrowCanonicalTerm[],
+): Suggestion[] {
+    const suggestions: SuggestionAndIncompatiblePatterns[] = [
+        {
+            search_string: "file-content:",
+            incompatible_patterns: incompatible_patterns["file-content"],
+        },
+    ];
+    return get_special_filter_suggestions(last, terms, suggestions);
+}
+
 function get_sent_by_me_suggestions(
     last: NarrowCanonicalTermSuggestion,
     terms: NarrowCanonicalTerm[],
@@ -896,7 +912,7 @@ function get_operator_suggestions(
     let choices: NarrowTerm["operator"][];
 
     if (last.operator === "") {
-        choices = ["channels", "channel", "streams", "stream"];
+        choices = ["channels", "channel", "streams", "stream", "file-content"];
     } else {
         choices = [
             "channels",
@@ -904,6 +920,7 @@ function get_operator_suggestions(
             "topic",
             "dm",
             "dm-including",
+            "file-content",
             "sender",
             "near",
             "from",
@@ -915,12 +932,16 @@ function get_operator_suggestions(
 
     // We remove suggestion choice if its incompatible_pattern matches
     // that of current search terms.
-    choices = choices.filter(
-        (choice) =>
-            common.phrase_match(last_operand, choice) &&
+    choices = choices.filter((choice) => {
+        const query = last_operand.toLowerCase();
+        const operator_segment_match =
+            query !== "" && choice.split("-").some((segment) => segment.startsWith(query));
+        return (
+            (common.phrase_match(last_operand, choice) || operator_segment_match) &&
             (!incompatible_patterns[choice] ||
-                !match_criteria(terms, incompatible_patterns[choice])),
-    );
+                !match_criteria(terms, incompatible_patterns[choice]))
+        );
+    });
 
     return choices.map((choice) => {
         // Map results for "dm:" operator for users
@@ -1105,6 +1126,9 @@ export function get_search_result(
     add_current_filter = false,
 ): Suggestion[] {
     let suggestion_line: SuggestionLine;
+    let merged_pill_search_terms = pill_search_terms;
+    const last_file_content_term = merged_pill_search_terms.at(-1);
+    const first_text_search_term = text_search_terms_non_canonical[0];
     const text_search_terms: NarrowCanonicalTermSuggestion[] = text_search_terms_non_canonical.map(
         (term) => {
             // Try to parse term into canonical form first to
@@ -1124,10 +1148,27 @@ export function get_search_result(
             };
         },
     );
+    if (
+        last_file_content_term?.operator === "file-content" &&
+        first_text_search_term?.operator === "search" &&
+        first_text_search_term.negated !== true &&
+        text_search_terms[0] !== undefined
+    ) {
+        const file_content_term = last_file_content_term;
+        const first_search_term = text_search_terms[0];
+        merged_pill_search_terms = [
+            ...merged_pill_search_terms.slice(0, -1),
+            {
+                ...file_content_term,
+                operand: `${file_content_term.operand} ${first_search_term.operand}`.trim(),
+            },
+        ];
+        text_search_terms.splice(0, 1);
+    }
     // search_terms correspond to the terms for the query in the input.
     // This includes the entire query entered in the searchbox.
     // terms correspond to the terms for the entire query entered in the searchbox.
-    let all_search_terms = [...pill_search_terms, ...text_search_terms];
+    let all_search_terms = [...merged_pill_search_terms, ...text_search_terms];
 
     // `last` will always be a text term, not a pill term. If there is no
     // text, then `last` is this default empty term.
@@ -1158,14 +1199,14 @@ export function get_search_result(
             };
             text_search_terms.splice(-2);
             text_search_terms.push(last);
-            all_search_terms = [...pill_search_terms, ...text_search_terms];
+            all_search_terms = [...merged_pill_search_terms, ...text_search_terms];
         }
     }
     const valid_base_text_search_terms = text_search_terms
         .slice(0, -1)
         .map((term) => Filter.convert_suggestion_to_term(term))
         .filter((term) => term !== undefined);
-    const base_terms = [...pill_search_terms, ...valid_base_text_search_terms];
+    const base_terms = [...merged_pill_search_terms, ...valid_base_text_search_terms];
     const base = get_default_suggestion_line(base_terms);
     const attacher = new Attacher(base, all_search_terms.length === 0, add_current_filter);
     const last_term = Filter.convert_suggestion_to_term(last);
@@ -1185,6 +1226,13 @@ export function get_search_result(
         base_terms.length + 1 === all_search_terms.length
     ) {
         suggestion_line = get_default_suggestion_line([...base_terms, last_term]);
+        attacher.push(suggestion_line);
+    } else if (
+        // Merged file-content: no trailing text term, so base_terms is the full query.
+        all_search_terms.length > 0 &&
+        base_terms.length === all_search_terms.length
+    ) {
+        suggestion_line = get_default_suggestion_line(base_terms);
         attacher.push(suggestion_line);
     }
 
@@ -1212,6 +1260,7 @@ export function get_search_result(
         get_group_suggestions("dm-including"),
         get_channels_filter_suggestions,
         get_operator_suggestions,
+        get_file_content_filter_suggestions,
         get_is_filter_suggestions,
         get_sent_by_me_suggestions,
         get_channel_suggestions,
@@ -1226,6 +1275,7 @@ export function get_search_result(
         filterers = [
             get_channels_filter_suggestions,
             get_operator_suggestions,
+            get_file_content_filter_suggestions,
             get_is_filter_suggestions,
             get_channel_suggestions,
             get_people("sender"),

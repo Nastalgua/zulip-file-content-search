@@ -40,6 +40,7 @@ export const narrow_canonical_operator_schema = z.enum([
     "channels",
     "dm",
     "dm-including",
+    "file-content",
     "has",
     "id",
     "in",
@@ -85,6 +86,11 @@ export const narrow_canonical_term_schema = z.discriminatedUnion("operator", [
     }),
     z.object({
         operator: z.literal("has"),
+        operand: z.string(),
+        negated: z.optional(z.boolean()),
+    }),
+    z.object({
+        operator: z.literal("file-content"),
         operand: z.string(),
         negated: z.optional(z.boolean()),
     }),

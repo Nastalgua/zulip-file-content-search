@@ -40,12 +40,52 @@ function get_search_bar_text(): string {
     return $("#search_query").text();
 }
 
+function is_search_cursor_at_end(): boolean {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+        return false;
+    }
+
+    const search_query = util.the($("#search_query")) as HTMLElement;
+    const range = selection.getRangeAt(0);
+    if (!range.collapsed || !search_query.contains(range.startContainer)) {
+        return false;
+    }
+
+    const end_range = document.createRange();
+    end_range.selectNodeContents(search_query);
+    end_range.collapse(false);
+
+    return range.compareBoundaryPoints(Range.START_TO_START, end_range) === 0;
+}
+
 // TODO/typescript: Add the rest of the options when converting narrow.js to typescript.
 type NarrowSearchOptions = {
     trigger: string;
 };
 
 type OnNarrowSearch = (terms: NarrowTerm[], options: NarrowSearchOptions) => void;
+
+function merge_file_content_with_text_terms(
+    pill_terms: NarrowCanonicalTerm[],
+    text_terms: NarrowCanonicalTerm[],
+): NarrowCanonicalTerm[] {
+    const last_pill = pill_terms.at(-1);
+    const first_text_term = text_terms[0];
+    if (
+        last_pill?.operator !== "file-content" ||
+        first_text_term?.operator !== "search" ||
+        first_text_term.negated === true
+    ) {
+        return [...pill_terms, ...text_terms];
+    }
+
+    const merged_last_pill: NarrowCanonicalTerm = {
+        ...last_pill,
+        operand: `${last_pill.operand} ${first_text_term.operand}`.trim(),
+    };
+    return [...pill_terms.slice(0, -1), merged_last_pill, ...text_terms.slice(1)];
+}
 
 function full_search_query_in_terms(): NarrowCanonicalTerm[] | undefined {
     assert(search_pill_widget !== null);
@@ -55,7 +95,8 @@ function full_search_query_in_terms(): NarrowCanonicalTerm[] | undefined {
         return undefined;
     }
 
-    return [...search_pill.get_current_search_pill_terms(search_pill_widget), ...search_terms];
+    const pill_terms = search_pill.get_current_search_pill_terms(search_pill_widget);
+    return merge_file_content_with_text_terms(pill_terms, search_terms);
 }
 
 function narrow_or_search_for_term({on_narrow_search}: {on_narrow_search: OnNarrowSearch}): void {
@@ -129,8 +170,9 @@ function narrow_to_search_contents_with_search_bar_open(): void {
         return;
     }
 
-    let terms = convert_search_text_to_terms() ?? [];
-    terms = [...search_pill.get_current_search_pill_terms(search_pill_widget!), ...terms];
+    const text_narrow_terms = convert_search_text_to_terms() ?? [];
+    const pill_terms = search_pill.get_current_search_pill_terms(search_pill_widget!);
+    const terms = merge_file_content_with_text_terms(pill_terms, text_narrow_terms);
     if (terms.length === 0) {
         return;
     }
@@ -190,11 +232,17 @@ export function initialize(opts: {on_narrow_search: OnNarrowSearch}): void {
             }
             assert(search_pill_widget !== null);
             const pill_terms = search_pill.get_current_search_pill_terms(search_pill_widget);
+            // Build one string so Filter.parse() can treat text after file-content: as a single operand
+            const full_query =
+                pill_terms.length > 0
+                    ? `${Filter.unparse(pill_terms)}${query ? ` ${query}` : ""}`
+                    : query;
+            const parsed = Filter.parse(full_query);
             const add_current_filter =
                 pill_terms.length === 0 && narrow_state.filter() !== undefined;
             const suggestions = search_suggestion.get_suggestions(
-                pill_terms,
-                Filter.parse(query),
+                [],
+                parsed,
                 add_current_filter,
             );
             // Update our global search_map hash
@@ -255,6 +303,9 @@ export function initialize(opts: {on_narrow_search: OnNarrowSearch}): void {
         // Turns off `stopPropagation` in the typeahead code so that
         // we can manage those events for search pills.
         advanceKeys: ["Backspace", "Enter", "ArrowLeft", "ArrowRight"],
+        trigger_selection(event: JQuery.KeyDownEvent): boolean {
+            return event.key === "ArrowRight" && is_search_cursor_at_end();
+        },
 
         // Use our custom typeahead `on_escape` hook to exit
         // the search bar as soon as the user hits Esc.
