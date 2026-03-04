@@ -33,6 +33,8 @@ from zerver.lib.upload.base import StreamingSourceWithSize, ZulipUploadBackend
 from zerver.models import Attachment, Message, Realm, RealmEmoji, ScheduledMessage, UserProfile
 from zerver.models.users import is_cross_realm_bot_email
 
+from zerver.lib.queue import queue_event_on_commit
+
 
 class RealmUploadQuotaError(JsonableError):
     code = ErrorCode.REALM_UPLOAD_QUOTA
@@ -128,6 +130,11 @@ def create_attachment(
         content_type=content_type,
     )
     maybe_thumbnail(file_vips_data, content_type, path_id, realm.id)
+
+    #create background queue
+    queue_event_on_commit("file_content_extraction", {"id": path_id})
+
+
     from zerver.actions.uploads import notify_attachment_update
 
     notify_attachment_update(user_profile, "add", attachment.to_dict())
