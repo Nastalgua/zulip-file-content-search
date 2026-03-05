@@ -18,6 +18,7 @@ from typing_extensions import override
 from zerver.lib.upload import save_attachment_contents
 from zerver.models import Attachment
 from zerver.worker.base import QueueProcessingWorker, assign_queue
+from docx import Document
 
 logger = logging.getLogger(__name__)
 
@@ -63,4 +64,15 @@ def _extract_and_store(
         return
 
     # TODO: Dispatch by content_type and extract text
+
+    elif content_type == "docx":
+        extracted_text = extract_from_docx(file_bytes)
     # TODO: Save to attachment model and update DB
+
+def extract_from_docx(file_bytes):
+    file_content = BytesIO(file_bytes)
+    document = Document(file_content)
+    text = ""
+    for paragraph in document.paragraphs:
+        text+=paragraph.text+"\n"
+    return text
