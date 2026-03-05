@@ -120,6 +120,9 @@ prod = [
   # Needed for messages' rendered content parsing in push notifications.
   "lxml",
 
+  # Needed for docx content extraction 
+  "python-docx",
+
   # Needed for 2-factor authentication
   "django-two-factor-auth[call,phonenumberslite,sms]",
 
