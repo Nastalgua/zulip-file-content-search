@@ -2200,3 +2200,16 @@ class DecompressionBombTests(ZulipTestCase):
                 else:
                     result = self.client_post(url, {"f1": fp})
                 self.assert_json_error(result, "Image size exceeds limit.")
+
+class FileQueueTest(ZulipTestCase):
+    def test_enqueue_upload(self) -> None:
+        user_profile = self.example_user("hamlet")
+        with patch("zerver.lib.upload.queue_event_on_commit") as queue:
+            upload_message_attachment(
+                "example.pdf",
+                "application/pdf",
+                b"b bytes",
+                user_profile,
+            )
+            self.assertEqual(queue.call_args[0][0], "file_content_extraction")
+            self.assertIn("id", queue.call_args[0][1])
