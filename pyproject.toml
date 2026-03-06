@@ -210,6 +210,10 @@ prod = [
   # Character set detection for text/plain
   "chardet>=5.1.0",
 
+  # Document content extraction for file search
+  "python-docx",
+  "pymupdf",
+
   # Better compression than zlib
   "zstd",
 
@@ -421,6 +425,7 @@ plugins = [
 module = [
     "ahocorasick.*",
     "backports.datetime_fromisoformat.*",
+    "docx.*",
     "bitfield.*",
     "bmemcached.*",
     "circuitbreaker.*",
@@ -440,6 +445,7 @@ module = [
     "onelogin.*",
     "pyinotify.*",
     "pyoembed.*",
+    "pymupdf.*",
     "pyuca.*",
     "pyvips.*",
     "scim2_filter_parser.attr_paths",

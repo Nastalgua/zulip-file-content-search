@@ -19,8 +19,13 @@ from zerver.lib.upload import save_attachment_contents
 from zerver.models import Attachment
 from zerver.worker.base import QueueProcessingWorker, assign_queue
 from docx import Document
+import pymupdf
 
 logger = logging.getLogger(__name__)
+
+# MIME type fragments for supported document types
+DOCX_CONTENT_TYPE = "vnd.openxmlformats-officedocument.wordprocessingml.document"
+PDF_CONTENT_TYPE = "application/pdf"
 
 
 @assign_queue("file_content_extraction")
@@ -57,17 +62,26 @@ def _extract_and_store(
 ) -> None:
     """Extract text from file_bytes and store in DB with updated tsvector.
 
-    TODO: Implement extraction for PDF (e.g., PyMuPDF), DOCX (e.g., python-docx),
-    and other supported types. Update DB fields.
+    TODO: Update DB fields and tsvector
     """
     if not content_type or not file_bytes:
         return
 
-    # TODO: Dispatch by content_type and extract text
-
-    elif content_type == "docx":
+    extracted_text: str | None = None
+    if content_type == "docx" or DOCX_CONTENT_TYPE in content_type:
         extracted_text = extract_from_docx(file_bytes)
+    elif content_type == PDF_CONTENT_TYPE or content_type.endswith("+pdf"):
+        extracted_text = extract_from_pdf(file_bytes)
+    elif content_type.startswith("text/plain"):
+        try:
+            extracted_text = file_bytes.decode("utf-8", errors="replace")
+        except Exception:
+            return
+
     # TODO: Save to attachment model and update DB
+    if extracted_text:
+        _ = extracted_text
+
 
 def extract_from_docx(file_bytes):
     file_content = BytesIO(file_bytes)
@@ -76,3 +90,15 @@ def extract_from_docx(file_bytes):
     for paragraph in document.paragraphs:
         text+=paragraph.text+"\n"
     return text
+
+
+def extract_from_pdf(file_bytes):
+    """Extract text from a PDF file using PyMuPDF."""
+    doc = pymupdf.open(stream=file_bytes, filetype="pdf")
+    try:
+        text_parts: list[str] = []
+        for page in doc:
+            text_parts.append(page.get_text())
+        return "\n".join(text_parts)
+    finally:
+        doc.close()

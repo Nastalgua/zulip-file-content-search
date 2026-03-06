@@ -3,6 +3,7 @@ from zerver.lib.upload import upload_message_attachment
 from zerver.models import Attachment
 from zerver.worker.file_content_extraction import FileContentExtractionWorker
 from zerver.worker.file_content_extraction import extract_from_docx
+from zerver.worker.file_content_extraction import extract_from_pdf
 from docx import Document
 from io import BytesIO
 
@@ -34,3 +35,17 @@ class FileContentExtractionWorkerTest(UploadSerializeMixin, ZulipTestCase):
         sample_document.save(bio)
         file_bytes = bio.getvalue()
         self.assertEqual(extract_from_docx(file_bytes),p1+"\n"+p2+"\n")
+
+    def test_extract_pdf(self)->None:
+        import pymupdf
+
+        doc = pymupdf.open()
+        page = doc.new_page()
+        page.insert_text((72, 72), "Hello from PDF")
+        page.insert_text((72, 100), "Second line of text")
+        file_bytes = doc.tobytes()
+        doc.close()
+
+        extracted = extract_from_pdf(file_bytes)
+        self.assertIn("Hello from PDF", extracted)
+        self.assertIn("Second line of text", extracted)
