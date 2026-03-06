@@ -391,7 +391,7 @@ export class Filter {
             return terms;
         }
 
-        for (const [index, token] of matches.entries()) {
+        for (const token of matches) {
             let operator;
             const parts = token.split(":");
             if (token.startsWith('"') || parts.length === 1) {
@@ -435,25 +435,9 @@ export class Filter {
                     // terms list. This is done so that the last active filter is correctly
                     // detected by the `get_search_result` function (in search_suggestions.ts).
                     maybe_add_search_terms();
-                    const canonical_operator = filter_util.canonicalize_operator(parsed_operator.data);
-                    if (canonical_operator === "file-content") {
-                        // For file-content, treat all remaining text in the input as part of
-                        // the operand so users can keep typing free-form content (with spaces)
-                        // until they explicitly exit this token in the UI.
-                        const remaining_text = matches.slice(index + 1).join(" ");
-                        if (remaining_text !== "") {
-                            operand = `${operand} ${remaining_text}`.trim();
-                        }
-                        terms.push({
-                            negated,
-                            operator: canonical_operator,
-                            operand,
-                        });
-                        return terms;
-                    }
                     term = {
                         negated,
-                        operator: canonical_operator,
+                        operator: filter_util.canonicalize_operator(parsed_operator.data),
                         operand,
                     };
                     terms.push(term);
@@ -617,6 +601,15 @@ export class Filter {
                 return term.operand;
             }
             const operator = filter_util.canonicalize_operator(term.operator);
+            if (
+                !is_operator_suggestion &&
+                operator === "file-content" &&
+                typeof term.operand === "string" &&
+                term.operand.includes(" ")
+            ) {
+                const quoted_operand = Filter.encodeOperand(term.operand).replaceAll("+", " ");
+                return `${sign}${operator}:"${quoted_operand}"`;
+            }
             const operand = is_operator_suggestion ? "" : Filter.encodeOperand(term.operand);
             return sign + operator + ":" + operand;
         });
