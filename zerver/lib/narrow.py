@@ -746,8 +746,38 @@ class NarrowBuilder:
         )
         return query.where(maybe_negate(cond))
 
-    def by_file_content(self, query: Select, operand: str, maybe_negate: ConditionTransform) -> Select:
-        raise NotImplementedError("Search by file content not implemented")
+    def by_file_content(
+        self, query: Select, operand: str, maybe_negate: ConditionTransform
+    ) -> Select:
+    # Find messages that have at least one attachment whose extracted text 
+    # content matches the search operand.
+
+    tsquery = func.plainto_tsquery(
+        literal("zulip.english_us_search"), literal(operand)
+    )
+
+    attachment_content_match = (
+        select(1)
+        .select_from(table("zerver_attachment_messages"))
+        .join(
+            table("zerver_attachment"),
+            literal_column("zerver_attachment_messages.attachment_id", Integer)
+            == literal_column("zerver_attachment.id", Integer),
+        )
+        .where(
+            literal_column("zerver_attachment_messages.message_id", Integer)
+            == self.msg_id_column,
+        )
+        # TODO: Replace this placeholder condition with the real tsvector
+        # match once the attachment model has been extended.
+        .where(
+            literal_column("zerver_attachment.search_tsvector", postgresql.TSVECTOR)
+            .op("@@")(tsquery)
+        )
+        .exists()
+    )
+
+    return query.where(maybe_negate(attachment_content_match))
 
     def by_search(self, query: Select, operand: str, maybe_negate: ConditionTransform) -> Select:
         if settings.USING_PGROONGA:
