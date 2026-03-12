@@ -16,7 +16,7 @@ from django.db import transaction
 from typing_extensions import override
 
 from zerver.lib.upload import save_attachment_contents
-from zerver.models import Attachment
+from zerver.models import Attachment, AttachmentContent
 from zerver.worker.base import QueueProcessingWorker, assign_queue
 from docx import Document
 import pymupdf
@@ -26,6 +26,13 @@ logger = logging.getLogger(__name__)
 # MIME type fragments for supported document types
 DOCX_CONTENT_TYPE = "vnd.openxmlformats-officedocument.wordprocessingml.document"
 PDF_CONTENT_TYPE = "application/pdf"
+
+#different extraction status for tracking in DB
+class ExtractionStatus:
+    PENDING = 1
+    SUCCESS = 2
+    FAILED = 3
+    UNSUPPORTED = 4
 
 
 @assign_queue("file_content_extraction")
@@ -65,6 +72,9 @@ def _extract_and_store(
     TODO: Update DB fields and tsvector
     """
     if not content_type or not file_bytes:
+        AttachmentContent.objects.filter(attachment_id=attachment.id).update(
+            extraction_status=ExtractionStatus.FAILED,
+        )
         return
 
     extracted_text: str | None = None
@@ -77,10 +87,25 @@ def _extract_and_store(
             extracted_text = file_bytes.decode("utf-8", errors="replace")
         except Exception:
             return
+    else:
+        AttachmentContent.objects.filter(attachment_id=attachment.id).update(
+            extraction_status=ExtractionStatus.UNSUPPORTED,
+        )
+        return
+
 
     # TODO: Save to attachment model and update DB
     if extracted_text:
         _ = extracted_text
+    
+    AttachmentContent.objects.filter(attachment_id=attachment.id).update(
+        extracted_text=extracted_text,
+        extraction_status=ExtractionStatus.SUCCESS,
+    )
+    AttachmentContent.objects.filter(attachment_id=attachment.id).update(
+        search_tsvector=SearchVector("extracted_text", config="english"),
+    )
+
 
 
 def extract_from_docx(file_bytes):

@@ -131,8 +131,10 @@ def create_attachment(
     )
     maybe_thumbnail(file_vips_data, content_type, path_id, realm.id)
 
+    #Create attachmentContent 
+    AttachmentContent.objects.create(attachment=attachment)
     #create background queue
-    queue_event_on_commit("file_content_extraction", {"id": path_id})
+    queue_event_on_commit("file_content_extraction", {"id": attachment.id})
 
 
     from zerver.actions.uploads import notify_attachment_update
