@@ -821,6 +821,56 @@ class Attachment(AbstractAttachment):
             ],
         }
 
+class AttachmentContent(models.Model):
+    """Stores extracted text content and full-text search vector for an Attachment.
+
+    This is intentionally separate from AbstractAttachment to keep the core
+    attachment model clean and to gracefully handle async/failed extractions —
+    an Attachment with no AttachmentContent row simply hasn't been processed yet.
+
+    Mirrors the pattern of Message.search_tsvector for full-text search.
+    """
+
+    attachment = models.OneToOneField(
+        "Attachment",
+        on_delete=CASCADE,
+        related_name="content",
+    )
+
+    class ExtractionStatus(models.IntegerChoices):
+        PENDING = 1, "Pending"
+        SUCCESS = 2, "Success"
+        FAILED = 3, "Failed"
+        UNSUPPORTED = 4, "Unsupported file type"
+
+    extraction_status = models.PositiveSmallIntegerField(
+        choices=ExtractionStatus.choices,
+        default=ExtractionStatus.PENDING,
+        db_index=True,
+    )
+
+    # The raw extracted text. Null until extraction succeeds.
+    extracted_text = models.TextField(null=True)
+
+    # PostgreSQL tsvector for full-text search, updated whenever extracted_text changes.
+    # Follows the same pattern as Message.search_tsvector.
+    search_tsvector = SearchVectorField(null=True)
+
+    # When extraction was last attempted, useful for retry logic.
+    last_attempted = models.DateTimeField(null=True, db_index=True)
+
+    class Meta:
+        indexes = [
+            GinIndex(
+                "search_tsvector",
+                fastupdate=False,
+                name="attachment_content_search_tsvector",
+            ),
+        ]
+
+    @override
+    def __str__(self) -> str:
+        return f"AttachmentContent(attachment_id={self.attachment_id}, status={self.extraction_status})"
 
 post_save.connect(flush_used_upload_space_cache, sender=Attachment)
 post_delete.connect(flush_used_upload_space_cache, sender=Attachment)
