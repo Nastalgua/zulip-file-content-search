@@ -12,6 +12,7 @@ import logging
 from io import BytesIO
 from typing import Any
 
+from django.contrib.postgres.search import SearchVector
 from django.db import transaction
 from typing_extensions import override
 

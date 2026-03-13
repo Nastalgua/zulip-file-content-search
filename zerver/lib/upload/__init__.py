@@ -30,7 +30,7 @@ from zerver.lib.thumbnail import (
     resize_emoji,
 )
 from zerver.lib.upload.base import StreamingSourceWithSize, ZulipUploadBackend
-from zerver.models import Attachment, Message, Realm, RealmEmoji, ScheduledMessage, UserProfile
+from zerver.models import Attachment, AttachmentContent, Message, Realm, RealmEmoji, ScheduledMessage, UserProfile
 from zerver.models.users import is_cross_realm_bot_email
 
 from zerver.lib.queue import queue_event_on_commit
