@@ -752,32 +752,38 @@ class NarrowBuilder:
     # Find messages that have at least one attachment whose extracted text 
     # content matches the search operand.
 
-    tsquery = func.plainto_tsquery(
-        literal("zulip.english_us_search"), literal(operand)
-    )
+        tsquery = func.plainto_tsquery(
+            literal("zulip.english_us_search"), literal(operand)
+        )
 
-    attachment_content_match = (
-        select(1)
-        .select_from(table("zerver_attachment_messages"))
-        .join(
-            table("zerver_attachment"),
-            literal_column("zerver_attachment_messages.attachment_id", Integer)
-            == literal_column("zerver_attachment.id", Integer),
+        attachment_content_match = (
+            select(1)
+            .select_from(table("zerver_attachment_messages"))
+            .join(
+                table("zerver_attachment"),
+                literal_column("zerver_attachment_messages.attachment_id", Integer)
+                == literal_column("zerver_attachment.id", Integer),
+            )
+            .join(
+                table("zerver_attachment_messages.attachment_id", Integer)
+                == literal_column("zerver_attachment.id", Integer),
+            )
+            .where(
+                literal_column("zerver_attachment_messages.message_id", Integer)
+                == self.msg_id_column,
+            )
+            # Check only attachments that have successfully extracted
+            .where(
+                literal_column("zerver_attachment.extraction_status", Integer)
+                == literal(2),
+            )
+            .where(
+                literal_column("zerver_attachmentcontent.search_vector", postgresql.TSVECTOR)
+                .op("@@")(tsquery)
+            )
+            .exists()
         )
-        .where(
-            literal_column("zerver_attachment_messages.message_id", Integer)
-            == self.msg_id_column,
-        )
-        # TODO: Replace this placeholder condition with the real tsvector
-        # match once the attachment model has been extended.
-        .where(
-            literal_column("zerver_attachment.search_tsvector", postgresql.TSVECTOR)
-            .op("@@")(tsquery)
-        )
-        .exists()
-    )
-
-    return query.where(maybe_negate(attachment_content_match))
+        return query.where(maybe_negate(attachment_content_match))
 
     def by_search(self, query: Select, operand: str, maybe_negate: ConditionTransform) -> Select:
         if settings.USING_PGROONGA:
