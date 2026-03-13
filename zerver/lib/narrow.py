@@ -749,12 +749,14 @@ class NarrowBuilder:
     def by_file_content(
         self, query: Select, operand: str, maybe_negate: ConditionTransform
     ) -> Select:
-    # Find messages that have at least one attachment whose extracted text 
-    # content matches the search operand.
-
         tsquery = func.plainto_tsquery(
             literal("zulip.english_us_search"), literal(operand)
         )
+
+        if self.msg_id_column.name == "message_id":
+            msg_id_ref = literal_column("zerver_usermessage.message_id", Integer)
+        else:
+            msg_id_ref = literal_column("zerver_message.id", Integer)
 
         attachment_content_match = (
             select(1)
@@ -765,24 +767,25 @@ class NarrowBuilder:
                 == literal_column("zerver_attachment.id", Integer),
             )
             .join(
-                table("zerver_attachment_messages.attachment_id", Integer)
+                table("zerver_attachmentcontent"),
+                literal_column("zerver_attachmentcontent.attachment_id", Integer)
                 == literal_column("zerver_attachment.id", Integer),
             )
             .where(
                 literal_column("zerver_attachment_messages.message_id", Integer)
-                == self.msg_id_column,
+                == msg_id_ref,
             )
-            # Check only attachments that have successfully extracted
             .where(
-                literal_column("zerver_attachment.extraction_status", Integer)
+                literal_column("zerver_attachmentcontent.extraction_status", Integer)
                 == literal(2),
             )
             .where(
-                literal_column("zerver_attachmentcontent.search_vector", postgresql.TSVECTOR)
+                literal_column("zerver_attachmentcontent.search_tsvector", postgresql.TSVECTOR)
                 .op("@@")(tsquery)
             )
             .exists()
         )
+
         return query.where(maybe_negate(attachment_content_match))
 
     def by_search(self, query: Select, operand: str, maybe_negate: ConditionTransform) -> Select:
