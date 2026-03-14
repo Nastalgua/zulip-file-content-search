@@ -40,6 +40,25 @@ function get_search_bar_text(): string {
     return $("#search_query").text();
 }
 
+function is_search_cursor_at_end(): boolean {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+        return false;
+    }
+
+    const search_query = util.the($("#search_query")) as HTMLElement;
+    const range = selection.getRangeAt(0);
+    if (!range.collapsed || !search_query.contains(range.startContainer)) {
+        return false;
+    }
+
+    const end_range = document.createRange();
+    end_range.selectNodeContents(search_query);
+    end_range.collapse(false);
+
+    return range.compareBoundaryPoints(Range.START_TO_START, end_range) === 0;
+}
+
 // TODO/typescript: Add the rest of the options when converting narrow.js to typescript.
 type NarrowSearchOptions = {
     trigger: string;
@@ -183,11 +202,12 @@ export function initialize(opts: {on_narrow_search: OnNarrowSearch}): void {
             }
             assert(search_pill_widget !== null);
             const pill_terms = search_pill.get_current_search_pill_terms(search_pill_widget);
+            const parsed = Filter.parse(query);
             const add_current_filter =
                 pill_terms.length === 0 && narrow_state.filter() !== undefined;
             const suggestions = search_suggestion.get_suggestions(
                 pill_terms,
-                Filter.parse(query),
+                parsed,
                 add_current_filter,
             );
             return suggestions;
@@ -244,6 +264,9 @@ export function initialize(opts: {on_narrow_search: OnNarrowSearch}): void {
         // Turns off `stopPropagation` in the typeahead code so that
         // we can manage those events for search pills.
         advanceKeys: ["Backspace", "Enter", "ArrowLeft", "ArrowRight"],
+        trigger_selection(event: JQuery.KeyDownEvent): boolean {
+            return event.key === "ArrowRight" && is_search_cursor_at_end();
+        },
 
         // Use our custom typeahead `on_escape` hook to exit
         // the search bar as soon as the user hits Esc.

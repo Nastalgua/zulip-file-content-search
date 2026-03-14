@@ -107,6 +107,26 @@ test("basic_get_suggestions", ({override}) => {
     assert.deepEqual(suggestions, expected);
 });
 
+test("file_content_operator_suggestions", ({override}) => {
+    override(narrow_state, "stream_id", noop);
+
+    let suggestions = get_suggestions("file-content");
+    assert.deepEqual(suggestions, ["file-content", "file-content:"]);
+
+    suggestions = get_suggestions("content");
+    assert.deepEqual(suggestions, ["content", "file-content:"]);
+
+    suggestions = get_suggestions("file-content:matrix mu");
+    assert.equal(suggestions[0], "file-content:matrix mu");
+    assert.ok(suggestions.includes("file-content:matrix mu"));
+
+    suggestions = get_suggestions('file-content:"matrix mu"');
+    assert.deepEqual(suggestions, ['file-content:"matrix mu"']);
+
+    suggestions = get_suggestions("file-content:mat has:link");
+    assert.deepEqual(suggestions, ["file-content:mat has:link"]);
+});
+
 test("basic_get_suggestions_for_spectator", () => {
     page_params.is_spectator = true;
     const web_public_id = new_stream_id();
@@ -118,6 +138,7 @@ test("basic_get_suggestions_for_spectator", () => {
     assert.deepEqual(suggestions, [
         "channels:",
         "channel:",
+        "file-content:",
         "is:resolved",
         "-is:resolved",
         "has:link",
@@ -380,6 +401,7 @@ test("empty_query_suggestions", () => {
     const expected = [
         "channels:",
         "channel:",
+        "file-content:",
         "is:dm",
         "is:starred",
         "is:mentioned",
@@ -454,6 +476,7 @@ test("check_is_suggestions", ({override}) => {
     let suggestions = get_suggestions(query);
     let expected = [
         "i",
+        "dm-including:",
         "is:dm",
         "is:starred",
         "is:mentioned",
@@ -473,6 +496,7 @@ test("check_is_suggestions", ({override}) => {
     suggestions = get_suggestions(query);
     expected = [
         "-i",
+        "-dm-including:",
         "-is:dm",
         "-is:starred",
         "-is:mentioned",
@@ -965,6 +989,7 @@ test("operator_suggestions", ({override}) => {
     suggestions = get_suggestions(query);
     expected = [
         "channel:66 is:alerted -f",
+        "channel:66 is:alerted -file-content:",
         "channel:66 is:alerted -sender:",
         `channel:66 is:alerted -sender:${me.user_id}`,
     ];
