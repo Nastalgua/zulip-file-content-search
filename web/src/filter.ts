@@ -557,6 +557,7 @@ export class Filter {
             case "channels":
                 return channels_operands.has(term.operand);
             case "topic":
+            case "file-content":
                 return true;
             case "sender":
                 return people.is_valid_user_id(term.operand);
@@ -600,6 +601,15 @@ export class Filter {
                 return term.operand;
             }
             const operator = filter_util.canonicalize_operator(term.operator);
+            if (
+                !is_operator_suggestion &&
+                operator === "file-content" &&
+                typeof term.operand === "string" &&
+                term.operand.includes(" ")
+            ) {
+                const quoted_operand = Filter.encodeOperand(term.operand).replaceAll("+", " ");
+                return `${sign}${operator}:"${quoted_operand}"`;
+            }
             const operand = is_operator_suggestion ? "" : Filter.encodeOperand(term.operand);
             return sign + operator + ":" + operand;
         });
@@ -633,6 +643,7 @@ export class Filter {
             "topic",
             "dm",
             "dm-including",
+            "file-content",
             "with",
             "sender",
             "near",
@@ -709,6 +720,9 @@ export class Filter {
 
             case "in":
                 return verb + "messages in";
+
+            case "file-content":
+                return verb + "file content";
 
             // Note: We hack around using this in "describe" below.
             case "is":

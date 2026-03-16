@@ -1634,6 +1634,17 @@ test("parse", () => {
     string = "https://www.google.com";
     terms = [{operator: "search", operand: "https://www.google.com"}];
     _test();
+
+    string = "file-content:matrix mu";
+    terms = [
+        {operator: "file-content", operand: "matrix"},
+        {operator: "search", operand: "mu"},
+    ];
+    _test();
+
+    string = 'file-content:"matrix mu"';
+    terms = [{operator: "file-content", operand: "matrix mu"}];
+    _test();
 });
 
 test("unparse", () => {
@@ -1687,6 +1698,11 @@ test("unparse", () => {
 
     terms = [{operator: "topic", operand: '\t "%+.\u00A0'}];
     string = "topic:%09+%22%25%2B.%C2%A0";
+    assert.equal(Filter.unparse(terms), string);
+    assert_same_terms(Filter.parse(string), terms);
+
+    terms = [{operator: "file-content", operand: "matrix mu"}];
+    string = 'file-content:"matrix mu"';
     assert.equal(Filter.unparse(terms), string);
     assert_same_terms(Filter.parse(string), terms);
 });

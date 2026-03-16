@@ -59,6 +59,7 @@ const descriptions: Record<string, string> = {
     "has:image": "messages with images",
     "has:attachment": "messages with attachments",
     "has:reaction": "messages with reactions",
+    "file-content:": "search file contents",
 };
 
 type SearchFilter =
@@ -145,6 +146,7 @@ const incompatible_patterns: Record<SearchFilter, TermPattern[]> = {
     is: [],
     search: [],
     with: [],
+    "file-content": [{operator: "file-content"}],
 };
 
 export type Suggestion = string;
@@ -773,6 +775,17 @@ function get_has_filter_suggestions(
     return get_special_filter_suggestions(last, suggestions);
 }
 
+function get_file_content_filter_suggestions(
+    last: NarrowCanonicalTermSuggestion,
+    terms: NarrowCanonicalTerm[],
+): Suggestion[] {
+    let suggestions: Suggestion[] = [];
+    if (!match_criteria(terms, incompatible_patterns["file-content"])) {
+        suggestions = ["file-content:"];
+    }
+    return get_special_filter_suggestions(last, suggestions);
+}
+
 function get_sent_by_me_suggestions(
     last: NarrowCanonicalTermSuggestion,
     terms: NarrowCanonicalTerm[],
@@ -835,6 +848,7 @@ function get_operator_suggestions(
             "topic",
             "dm",
             "dm-including",
+            "file-content",
             "sender",
             "near",
         ];
@@ -858,7 +872,12 @@ function get_operator_suggestions(
     });
 
     const choices = [...canonicalized_operator_choices, ...legacy_operator_choices].filter(
-        (choice) => common.phrase_match(last_operand, choice),
+        (choice) => {
+        const query = last_operand.toLowerCase();
+        const operator_segment_match =
+            query !== "" && choice.split("-").some((segment) => segment.startsWith(query));
+            return common.phrase_match(last_operand, choice) || operator_segment_match;
+        },
     );
 
     return choices.map((choice) => {
@@ -1145,6 +1164,7 @@ export let get_suggestions = function (
         get_group_suggestions("dm-including"),
         get_channels_filter_suggestions,
         get_operator_suggestions,
+        get_file_content_filter_suggestions,
         get_is_filter_suggestions,
         get_sent_by_me_suggestions,
         get_channel_suggestions,
@@ -1159,6 +1179,7 @@ export let get_suggestions = function (
         filterers = [
             get_channels_filter_suggestions,
             get_operator_suggestions,
+            get_file_content_filter_suggestions,
             get_is_filter_suggestions,
             get_channel_suggestions,
             get_people("sender"),
