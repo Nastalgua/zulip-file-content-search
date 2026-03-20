@@ -775,6 +775,7 @@ class NarrowBuilder:
                 literal_column("zerver_attachment_messages.message_id", Integer)
                 == msg_id_ref,
             )
+            # only get successfully extracted attachments
             .where(
                 literal_column("zerver_attachmentcontent.extraction_status", Integer)
                 == literal(2),
