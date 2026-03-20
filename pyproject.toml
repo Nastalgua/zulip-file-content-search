@@ -120,6 +120,9 @@ prod = [
   # Needed for messages' rendered content parsing in push notifications.
   "lxml",
 
+  # Needed for docx content extraction 
+  "python-docx",
+
   # Needed for 2-factor authentication
   "django-two-factor-auth[call,phonenumberslite,sms]",
 
@@ -206,6 +209,10 @@ prod = [
 
   # Character set detection for text/plain
   "chardet>=5.1.0",
+
+  # Document content extraction for file search
+  "python-docx",
+  "pymupdf",
 
   # Better compression than zlib
   "zstd",
@@ -418,6 +425,7 @@ plugins = [
 module = [
     "ahocorasick.*",
     "backports.datetime_fromisoformat.*",
+    "docx.*",
     "bitfield.*",
     "bmemcached.*",
     "circuitbreaker.*",
@@ -437,6 +445,7 @@ module = [
     "onelogin.*",
     "pyinotify.*",
     "pyoembed.*",
+    "pymupdf.*",
     "pyuca.*",
     "pyvips.*",
     "scim2_filter_parser.attr_paths",

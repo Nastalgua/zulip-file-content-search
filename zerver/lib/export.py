@@ -145,6 +145,7 @@ ALL_ZULIP_TABLES = {
     "zerver_archivedmessage",
     "zerver_archivedusermessage",
     "zerver_attachment",
+    "zerver_attachmentcontent",
     "zerver_attachment_messages",
     "zerver_attachment_scheduled_messages",
     "zerver_archivedreaction",
@@ -292,6 +293,8 @@ NON_EXPORTED_TABLES = {
     # The importer cannot trust ImageAttachment objects anyway and needs to check
     # and process images for thumbnailing on its own.
     "zerver_imageattachment",
+    # AttachmentContent stores extracted text for full-text search
+    "zerver_attachmentcontent",
     # ChannelEmailAddress entries are low value to export since
     # channel email addresses include the server's hostname.
     "zerver_channelemailaddress",

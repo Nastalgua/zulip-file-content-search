@@ -158,6 +158,7 @@ class zulip::app_frontend_base {
     'embedded_bots',
     'email_senders',
     'deferred_email_senders',
+    'file_content_extraction',
     'missedmessage_emails',
     'missedmessage_mobile_notifications',
     'outgoing_webhooks',
