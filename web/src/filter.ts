@@ -196,16 +196,6 @@ function message_matches_search_term(message: Message, term: NarrowTerm): boolea
             }
             return operand_ids.every((operand_id) => user_ids.includes(operand_id));
         }
-
-        case "file-content": {
-            if (message_parser.message_has_attachment(message.content)) {
-                // TODO: Handle text extraction from attachment
-
-            } else if (message_parser.message_has_image(message.content)) {
-                // TODO: Handle OCR
-            }
-            return false;
-        }
     }
 
     // We will never get here since operator type validation would fail.
@@ -573,9 +563,6 @@ export class Filter {
             case "dm":
             case "dm-including":
                 return people.is_valid_user_ids(term.operand);
-            case "file-content":
-                // Operand should just be the search string, no constraints
-                return true;
             case "search":
             case "":
                 return true;
@@ -726,9 +713,6 @@ export class Filter {
             // Note: We hack around using this in "describe" below.
             case "is":
                 return verb + "messages that are";
-            
-            case "file-content":
-                return verb + "files containing"
         }
         return "";
     }

@@ -59,7 +59,6 @@ const descriptions: Record<string, string> = {
     "has:image": "messages with images",
     "has:attachment": "messages with attachments",
     "has:reaction": "messages with reactions",
-    "file-content:": "search within file contents",
 };
 
 type SearchFilter =
@@ -98,7 +97,6 @@ const incompatible_patterns: Record<SearchFilter, TermPattern[]> = {
         {operator: "is", operand: "resolved"},
     ],
     "dm-including": [{operator: "channel"}, {operator: "stream"}],
-    "file-content": [],
     "is:resolved": [
         {operator: "is", operand: "resolved"},
         {operator: "is", operand: "dm"},
@@ -807,16 +805,6 @@ function get_sent_by_me_suggestions(
     return [];
 }
 
-function get_file_content_filter_suggestions(
-    last: NarrowCanonicalTermSuggestion,
-    terms: NarrowCanonicalTerm[],
-): Suggestion[] {
-    if (match_criteria(terms, incompatible_patterns["file-content"])) {
-        return [];
-    }
-    return get_special_filter_suggestions(last, ["file-content:"]);
-}
-
 function get_operator_suggestions(
     last: NarrowCanonicalTermSuggestion,
     terms: NarrowCanonicalTerm[],
@@ -1165,7 +1153,6 @@ export let get_suggestions = function (
         get_people("dm-including"),
         get_topic_suggestions,
         get_has_filter_suggestions,
-        get_file_content_filter_suggestions,
     ];
 
     if (page_params.is_spectator) {
