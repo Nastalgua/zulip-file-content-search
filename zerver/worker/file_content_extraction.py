@@ -12,15 +12,15 @@ import logging
 from io import BytesIO
 from typing import Any
 
+import pymupdf
 from django.contrib.postgres.search import SearchVector
 from django.db import transaction
+from docx import Document
 from typing_extensions import override
 
 from zerver.lib.upload import save_attachment_contents
 from zerver.models import Attachment, AttachmentContent
 from zerver.worker.base import QueueProcessingWorker, assign_queue
-from docx import Document
-import pymupdf
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +98,7 @@ def _extract_and_store(
     # TODO: Save to attachment model and update DB
     if extracted_text:
         _ = extracted_text
-    
+
     AttachmentContent.objects.filter(attachment_id=attachment.id).update(
         extracted_text=extracted_text,
         extraction_status=ExtractionStatus.SUCCESS,

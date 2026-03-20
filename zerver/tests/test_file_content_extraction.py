@@ -1,11 +1,16 @@
+from io import BytesIO
+
+from docx import Document
+
 from zerver.lib.test_classes import UploadSerializeMixin, ZulipTestCase
 from zerver.lib.upload import upload_message_attachment
 from zerver.models import Attachment
-from zerver.worker.file_content_extraction import FileContentExtractionWorker
-from zerver.worker.file_content_extraction import extract_from_docx
-from zerver.worker.file_content_extraction import extract_from_pdf
-from docx import Document
-from io import BytesIO
+from zerver.worker.file_content_extraction import (
+    FileContentExtractionWorker,
+    extract_from_docx,
+    extract_from_pdf,
+)
+
 
 class FileContentExtractionWorkerTest(UploadSerializeMixin, ZulipTestCase):
     def test_consume_processes_attachment(self) -> None:

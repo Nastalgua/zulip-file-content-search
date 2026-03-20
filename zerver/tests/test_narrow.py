@@ -1,17 +1,10 @@
 from django.db import connection
 
+from zerver.lib.narrow import NarrowParameter, add_narrow_conditions, get_base_query_for_search
+from zerver.lib.sqlalchemy_utils import get_sqlalchemy_connection
+from zerver.lib.test_classes import ZulipTestCase
 from zerver.models import Attachment, Message
 from zerver.models.messages import AttachmentContent
-from zerver.lib.test_classes import ZulipTestCase
-from zerver.lib.narrow import (
-    NarrowParameter,
-    add_narrow_conditions,
-    get_base_query_for_search,
-)
-from zerver.lib.sqlalchemy_utils import get_sqlalchemy_connection
-
-from sqlalchemy.sql import column, select, table
-from sqlalchemy.types import Integer
 
 
 class FileContentNarrowTest(ZulipTestCase):
