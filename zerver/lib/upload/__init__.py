@@ -20,6 +20,7 @@ from zerver.lib.avatar_hash import user_avatar_base_path_from_ids, user_avatar_p
 from zerver.lib.exceptions import ErrorCode, JsonableError
 from zerver.lib.mime_types import INLINE_MIME_TYPES, bare_content_type, guess_type
 from zerver.lib.outgoing_http import OutgoingSession
+from zerver.lib.queue import queue_event_on_commit
 from zerver.lib.thumbnail import (
     MAX_EMOJI_GIF_FILE_SIZE_BYTES,
     MEDIUM_AVATAR_SIZE,
@@ -30,10 +31,16 @@ from zerver.lib.thumbnail import (
     resize_emoji,
 )
 from zerver.lib.upload.base import StreamingSourceWithSize, ZulipUploadBackend
-from zerver.models import Attachment, AttachmentContent, Message, Realm, RealmEmoji, ScheduledMessage, UserProfile
+from zerver.models import (
+    Attachment,
+    AttachmentContent,
+    Message,
+    Realm,
+    RealmEmoji,
+    ScheduledMessage,
+    UserProfile,
+)
 from zerver.models.users import is_cross_realm_bot_email
-
-from zerver.lib.queue import queue_event_on_commit
 
 
 class RealmUploadQuotaError(JsonableError):
@@ -131,7 +138,7 @@ def create_attachment(
     )
     maybe_thumbnail(file_vips_data, content_type, path_id, realm.id)
 
-    #Create attachmentContent 
+    #Create attachmentContent
     AttachmentContent.objects.create(attachment=attachment)
     #create background queue
     queue_event_on_commit("file_content_extraction", {"id": attachment.id})

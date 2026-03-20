@@ -1,5 +1,4 @@
 import re
-from io import StringIO
 
 from zerver.lib.test_classes import UploadSerializeMixin, ZulipTestCase
 from zerver.lib.test_helpers import get_test_image_file
