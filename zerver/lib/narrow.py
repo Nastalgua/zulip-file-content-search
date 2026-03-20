@@ -301,6 +301,7 @@ class NarrowBuilder:
             "id": self.by_id,
             "search": self.by_search,
             "dm": self.by_dm,
+            "file-content": self.by_file_content,
             # "pm-with:" is a legacy alias for "dm:"
             "pm-with": self.by_dm,
             "dm-including": self.by_dm_including,
@@ -744,6 +745,49 @@ class NarrowBuilder:
             column("recipient_id", Integer).in_(recipient_ids),
         )
         return query.where(maybe_negate(cond))
+
+    def by_file_content(
+        self, query: Select, operand: str, maybe_negate: ConditionTransform
+    ) -> Select:
+        tsquery = func.plainto_tsquery(
+            literal("zulip.english_us_search"), literal(operand)
+        )
+
+        if self.msg_id_column.name == "message_id":
+            msg_id_ref = literal_column("zerver_usermessage.message_id", Integer)
+        else:
+            msg_id_ref = literal_column("zerver_message.id", Integer)
+
+        attachment_content_match = (
+            select(1)
+            .select_from(table("zerver_attachment_messages"))
+            .join(
+                table("zerver_attachment"),
+                literal_column("zerver_attachment_messages.attachment_id", Integer)
+                == literal_column("zerver_attachment.id", Integer),
+            )
+            .join(
+                table("zerver_attachmentcontent"),
+                literal_column("zerver_attachmentcontent.attachment_id", Integer)
+                == literal_column("zerver_attachment.id", Integer),
+            )
+            .where(
+                literal_column("zerver_attachment_messages.message_id", Integer)
+                == msg_id_ref,
+            )
+            # only get successfully extracted attachments
+            .where(
+                literal_column("zerver_attachmentcontent.extraction_status", Integer)
+                == literal(2),
+            )
+            .where(
+                literal_column("zerver_attachmentcontent.search_tsvector", postgresql.TSVECTOR)
+                .op("@@")(tsquery)
+            )
+            .exists()
+        )
+
+        return query.where(maybe_negate(attachment_content_match))
 
     def by_search(self, query: Select, operand: str, maybe_negate: ConditionTransform) -> Select:
         if settings.USING_PGROONGA:

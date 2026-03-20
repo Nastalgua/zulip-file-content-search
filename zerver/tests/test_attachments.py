@@ -99,3 +99,10 @@ class AttachmentsTests(ZulipTestCase):
         self.assert_json_error(
             result, "Not logged in: API authentication or user session required", status_code=401
         )
+
+    def test_attachment_fields_persist(self) -> None:
+        attachment = Attachment.objects.get(id=self.attachment.id)
+        self.assertEqual(attachment.file_name, "test.txt")
+        self.assertEqual(attachment.path_id, "foo/bar/test.txt")
+        self.assertEqual(attachment.size, 512)
+        self.assertEqual(attachment.owner, self.example_user("cordelia"))
