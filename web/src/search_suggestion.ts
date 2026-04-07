@@ -1,6 +1,7 @@
 import Handlebars from "handlebars/runtime.js";
 import assert from "minimalistic-assert";
 
+import * as blueslip from "./blueslip.ts";
 import {MAX_ITEMS} from "./bootstrap_typeahead.ts";
 import * as common from "./common.ts";
 import * as direct_message_group_data from "./direct_message_group_data.ts";
@@ -579,6 +580,11 @@ function get_topic_suggestions(
         const sub = stream_data.get_sub_by_id_string(channel_id_str)!;
         if (sub && stream_data.can_access_topic_history(sub)) {
             const current_channel_id = sub.stream_id;
+            blueslip.log("Search suggestion requesting topic history from backend", {
+                channel_id: current_channel_id,
+                guess,
+                last_operator: last.operator,
+            });
             stream_topic_history_util.get_server_history(current_channel_id, () => {
                 // Fetch topic history from the server, in case we will
                 // need it.  Note that we won't actually use the results

@@ -1626,6 +1626,12 @@ export class Filter {
             return false;
         }
 
+        if (this._terms.some((term) => term.operator === "file-content")) {
+            // Attachment full-text matching is server-only (`by_file_content` in narrow.py).
+            // Use `_terms` so negated `file-content` is included; `has_operator` skips it.
+            return false;
+        }
+
         if (this.has_operator("has") && is_local_echo) {
             // The has: operators can be applied locally for messages
             // rendered by the backend; links, attachments, and images
