@@ -295,6 +295,22 @@ test("basics", () => {
     assert.ok(!filter.can_show_next_unread_dm_conversation_button());
     assert.ok(!filter.has_exactly_channel_topic_operators());
 
+    // file-content is evaluated only on the server; local preload must not run.
+    terms = [{operator: "file-content", operand: "foo"}];
+    filter = new Filter(terms);
+    assert.ok(!filter.can_apply_locally());
+
+    terms = [
+        {operator: "channel", operand: foo_stream_id.toString()},
+        {operator: "file-content", operand: "foo"},
+    ];
+    filter = new Filter(terms);
+    assert.ok(!filter.can_apply_locally());
+
+    terms = [{operator: "file-content", operand: "foo", negated: true}];
+    filter = new Filter(terms);
+    assert.ok(!filter.can_apply_locally());
+
     // Similar logic applies to negated "has" searches.
     terms = [{operator: "has", operand: "images", negated: true}];
     filter = new Filter(terms);
