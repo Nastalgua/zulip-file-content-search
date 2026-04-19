@@ -17,16 +17,22 @@ from django.contrib.postgres.search import SearchVector
 from django.db import transaction
 from docx import Document
 from typing_extensions import override
+from PIL import Image
+import pytesseract
+import io
 
 from zerver.lib.upload import save_attachment_contents
 from zerver.models import Attachment, AttachmentContent
 from zerver.worker.base import QueueProcessingWorker, assign_queue
+
 
 logger = logging.getLogger(__name__)
 
 # MIME type fragments for supported document types
 DOCX_CONTENT_TYPE = "vnd.openxmlformats-officedocument.wordprocessingml.document"
 PDF_CONTENT_TYPE = "application/pdf"
+PNG_CONTENT_TYPE = "image/png"
+JPEG_CONTENT_TYPE = "image/jpeg"
 
 #different extraction status for tracking in DB
 class ExtractionStatus:
@@ -88,6 +94,8 @@ def _extract_and_store(
             extracted_text = file_bytes.decode("utf-8", errors="replace")
         except Exception:
             return
+    elif content_type == "png" or PNG_CONTENT_TYPE in content_type or content_type == "jpeg" or JPEG_CONTENT_TYPE in content_type:
+        extracted_text = extract_from_image(file_bytes)
     else:
         AttachmentContent.objects.filter(attachment_id=attachment.id).update(
             extraction_status=ExtractionStatus.UNSUPPORTED,
@@ -128,3 +136,8 @@ def extract_from_pdf(file_bytes):
         return "\n".join(text_parts)
     finally:
         doc.close()
+
+def extract_from_image(file_bytes):
+    image = Image.open(io.BytesIO(file_bytes))
+    text = pytesseract.image_to_string(image)
+    return text

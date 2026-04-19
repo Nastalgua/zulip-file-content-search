@@ -118,6 +118,7 @@ UBUNTU_COMMON_APT_DEPENDENCIES = [
     "hunspell-en-us",
     "puppet-lint",
     "default-jre-headless",  # Required by vnu-jar
+    "tesseract-ocr", # for OCR text extraction
     # Puppeteer dependencies from here
     "fonts-freefont-ttf",
     "libatk-bridge2.0-0",

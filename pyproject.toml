@@ -213,6 +213,8 @@ prod = [
   # Document content extraction for file search
   "python-docx",
   "pymupdf",
+  "pytesseract",
+  "Pillow",
 
   # Better compression than zlib
   "zstd",
