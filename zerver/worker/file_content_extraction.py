@@ -133,7 +133,14 @@ def extract_from_pdf(file_bytes):
         text_parts: list[str] = []
         for page in doc:
             text_parts.append(page.get_text())
-        return "\n".join(text_parts)
+        texts_joined = "\n".join(text_parts)
+        if not texts_joined.strip():
+            ocr_joined = "\n".join(
+            page.get_text(textpage=page.get_textpage_ocr(dpi=300))
+            for page in doc
+            )
+            return ocr_joined
+        return texts_joined
     finally:
         doc.close()
 
