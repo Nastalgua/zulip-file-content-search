@@ -67,6 +67,12 @@ export function process_new_message(opts: NewMessage): ProcessedMessage {
     // messages.
     const cached_msg_data = message_store.get_cached_message(opts.raw_message.id);
     if (cached_msg_data !== undefined) {
+        if (opts.type === "server_message") {
+            assert(cached_msg_data.type === "server_message");
+            cached_msg_data.message.file_content_snippets =
+                opts.raw_message.file_content_snippets ?? [];
+        }
+
         // Copy the match topic and content over if they exist on
         // the new message. Local messages will never have match metadata,
         // since we need the server to calculate it.
@@ -81,6 +87,7 @@ export function process_new_message(opts: NewMessage): ProcessedMessage {
     }
 
     const message_with_booleans = message_store.convert_raw_message_to_message_with_booleans(opts);
+    message_with_booleans.message.file_content_snippets ??= [];
     people.extract_people_from_message(message_with_booleans.message);
 
     const sent_by_me = people.is_my_user_id(message_with_booleans.message.sender_id);

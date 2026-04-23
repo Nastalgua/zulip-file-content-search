@@ -73,6 +73,14 @@ export const submessage_schema = z.object({
     msg_type: z.string(),
 });
 
+const file_content_snippet_schema = z.object({
+    attachment_id: z.number(),
+    file_name: z.string(),
+    path_id: z.string(),
+    // HTML string with <mark> tags. Everything else is escaped on the server.
+    snippet: z.string(),
+});
+
 export const raw_message_schema = z.intersection(
     z.intersection(
         z.object({
@@ -82,6 +90,7 @@ export const raw_message_schema = z.intersection(
             content_type: z.literal("text/html"),
             display_recipient: display_recipient_schema,
             edit_history: z.optional(z.array(message_edit_history_entry_schema)),
+            file_content_snippets: z.optional(z.array(file_content_snippet_schema)),
             id: z.number(),
             is_me_message: z.boolean(),
             last_edit_timestamp: z.optional(z.number()),

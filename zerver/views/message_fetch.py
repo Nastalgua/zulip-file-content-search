@@ -1,10 +1,12 @@
 from collections.abc import Iterable
+import re
 from typing import Annotated
 
 from django.conf import settings
 from django.contrib.auth.models import AnonymousUser
 from django.db import connection, transaction
 from django.http import HttpRequest, HttpResponse
+from django.utils.html import escape
 from django.utils.translation import gettext as _
 from pydantic import Json, NonNegativeInt
 from sqlalchemy.sql import column, func
@@ -37,6 +39,106 @@ from zerver.lib.typed_endpoint import ApiParamConfig, typed_endpoint
 from zerver.models import UserMessage, UserProfile
 
 MAX_MESSAGES_PER_FETCH = 5000
+FILE_CONTENT_SNIPPET_CONTEXT_CHARS = 180
+
+
+def _add_file_content_snippets(
+    *,
+    message_list: list[dict[str, object]],
+    narrow: list[NarrowParameter] | None,
+) -> None:
+    if not message_list or not narrow:
+        return
+
+    # Only show snippets for non-negated file-content terms.
+    # Negated file-content narrows still work, they just do not get snippets.
+    operand: str | None = None
+    for term in narrow:
+        if term.operator == "file-content" and not term.negated:
+            operand = term.operand
+            break
+    if not operand:
+        return
+
+    # Use the first word to anchor a short snippet.
+    tokens = re.findall(r"[A-Za-z0-9_]+", operand)
+    if not tokens:
+        return
+    anchor_token = tokens[0].lower()
+
+    message_ids = [m["id"] for m in message_list if "id" in m]
+    if not message_ids:
+        return
+
+    # Fetch snippets for matching attachments on these messages.
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT
+                am.message_id,
+                a.id AS attachment_id,
+                a.file_name,
+                a.path_id,
+                CASE
+                    WHEN position(%s in lower(ac.extracted_text)) > 0 THEN
+                        substr(
+                            ac.extracted_text,
+                            greatest(
+                                position(%s in lower(ac.extracted_text)) - %s,
+                                1
+                            ),
+                            (%s * 2) + char_length(%s)
+                        )
+                    ELSE
+                        substr(ac.extracted_text, 1, (%s * 2) + char_length(%s))
+                END AS snippet
+            FROM zerver_attachment_messages am
+            JOIN zerver_attachment a ON a.id = am.attachment_id
+            JOIN zerver_attachmentcontent ac ON ac.attachment_id = a.id
+            WHERE am.message_id = ANY(%s)
+              AND ac.extraction_status = 2
+              AND ac.search_tsvector @@ plainto_tsquery('zulip.english_us_search', %s)
+            ORDER BY am.message_id ASC, a.id ASC
+            """,
+            [
+                anchor_token,
+                anchor_token,
+                FILE_CONTENT_SNIPPET_CONTEXT_CHARS,
+                FILE_CONTENT_SNIPPET_CONTEXT_CHARS,
+                anchor_token,
+                FILE_CONTENT_SNIPPET_CONTEXT_CHARS,
+                anchor_token,
+                message_ids,
+                operand,
+            ],
+        )
+        rows = cursor.fetchall()
+
+    by_message_id: dict[int, list[dict[str, object]]] = {}
+    for message_id, attachment_id, file_name, path_id, snippet in rows:
+        snippet_text = "" if snippet is None else str(snippet)
+        snippet_html = escape(snippet_text)
+        # Highlight all search tokens in the escaped snippet text.
+        for tok in tokens:
+            snippet_html = re.sub(
+                rf"({re.escape(tok)})",
+                r"<mark>\1</mark>",
+                snippet_html,
+                flags=re.IGNORECASE,
+            )
+        by_message_id.setdefault(int(message_id), []).append(
+            {
+                "attachment_id": int(attachment_id),
+                "file_name": str(file_name),
+                "path_id": str(path_id),
+                "snippet": snippet_html,
+            }
+        )
+
+    for msg in message_list:
+        msg_id = msg.get("id")
+        if isinstance(msg_id, int) and msg_id in by_message_id:
+            msg["file_content_snippets"] = by_message_id[msg_id]
 
 
 def highlight_string(text: str, locs: Iterable[tuple[int, int]]) -> str:
@@ -310,6 +412,8 @@ def get_messages_backend(
             user_profile=user_profile,
             realm=realm,
         )
+
+    _add_file_content_snippets(message_list=message_list, narrow=narrow)
 
     if client_requested_message_ids is not None:
         ret = dict(

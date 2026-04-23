@@ -142,6 +142,14 @@ test("process_new_message", () => {
         id: 2067,
         match_subject: "topic foo",
         match_content: "bar content",
+        file_content_snippets: [
+            {
+                attachment_id: 9,
+                file_name: "report.txt",
+                path_id: "1/2/3/report.txt",
+                snippet: "matching <mark>bar</mark> content",
+            },
+        ],
         reactions: [],
         submessages: [],
         avatar_url: "/some/path/to/avatar",
@@ -156,6 +164,14 @@ test("process_new_message", () => {
     assert.equal(message.display_reply_to, "Bob, Cindy");
     assert.equal(util.get_match_topic(message), "topic foo");
     assert.equal(message.match_content, "bar content");
+    assert.deepEqual(message.file_content_snippets, [
+        {
+            attachment_id: 9,
+            file_name: "report.txt",
+            path_id: "1/2/3/report.txt",
+            snippet: "matching <mark>bar</mark> content",
+        },
+    ]);
 
     message = {
         sender_email: denise.email,

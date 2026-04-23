@@ -62,6 +62,14 @@
             {{rendered_markdown msg/content}}
         {{/if}}
     </div>
+    <div class="file-content-snippets">
+        {{#each msg/file_content_snippets}}
+            <div class="file-content-snippet">
+                <a class="file-content-snippet-filename" href="/user_uploads/{{this.path_id}}" target="_blank" rel="noreferrer noopener">{{this.file_name}}</a>
+                <div class="file-content-snippet-text">{{{this.snippet}}}</div>
+            </div>
+        {{/each}}
+    </div>
     {{else}}
     <div class="message_content rendered_markdown">
         {{> message_hidden_dialog}}
