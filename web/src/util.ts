@@ -239,6 +239,11 @@ export function sorted_ids(ids: number[]): number[] {
 export function set_match_data(target: Message, source: MatchedMessage | RawMessage): void {
     target.match_subject = source.match_subject;
     target.match_content = source.match_content;
+    // Preserve source's file_content_matches when present; keep the target's
+    // existing value (from an earlier search response) when source omits it.
+    if (source.file_content_matches !== undefined) {
+        target.file_content_matches = source.file_content_matches;
+    }
 }
 
 export function get_match_topic(obj: Message | RawMessage): string | undefined {

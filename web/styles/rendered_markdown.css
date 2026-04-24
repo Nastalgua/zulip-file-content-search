@@ -1030,6 +1030,43 @@
     background-color: hsl(51deg 100% 79%);
 }
 
+/* File-content search snippet (lives inside .message_content so it shares
+   the message grid cell; must be block-level and min-width:0 for text wrap) */
+.message_content .file-content-matches {
+    display: block;
+    margin-top: 6px;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.message_content .file-content-match-snippet {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    max-width: 100%;
+    font-size: 0.85em;
+    /* Use theme text color so .highlight spans inherit readable contrast in
+       night mode (hardcoded grey looked fine in light mode only). */
+    color: var(--color-text-message-default);
+    font-style: italic;
+    margin-top: 4px;
+}
+
+.message_content .file-content-match-fragment {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+}
+
+.message_content .file-content-fragment-separator {
+    flex: 0 0 auto;
+    align-self: stretch;
+    height: 0;
+    margin: 0.45em 0;
+    border: none;
+    border-top: 1px solid var(--color-border-message-group-spacer-line);
+}
+
 /* For elements where we want to show as much markdown content we can
    in a single line and then hide the overflowing part. */
 .single-line-rendered-markdown {

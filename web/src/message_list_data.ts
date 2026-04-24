@@ -210,6 +210,11 @@ export class MessageListData {
     is_keyword_search(): boolean {
         return this.filter.is_keyword_search();
     }
+
+    is_file_content_search(): boolean {
+        return this.filter.is_file_content_search();
+    }
+
     can_mark_messages_read(): boolean {
         return this.filter.can_mark_messages_read();
     }

@@ -1096,6 +1096,10 @@ export class Filter {
         return this.has_operator("search");
     }
 
+    is_file_content_search(): boolean {
+        return this.has_operator("file-content");
+    }
+
     is_search_for_specific_group_or_user(): boolean {
         return (
             this.has_operator("dm") ||

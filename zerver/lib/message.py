@@ -290,6 +290,7 @@ def messages_for_ids(
     message_edit_history_visibility_policy: int,
     user_profile: UserProfile | None,
     realm: Realm,
+    file_content_fields: dict[int, list[dict[str, str]]] | None = None,
 ) -> list[dict[str, Any]]:
     id_fetcher = lambda row: row["id"]
 
@@ -322,6 +323,8 @@ def messages_for_ids(
         msg_dict.update(flags=flags)
         if message_id in search_fields:
             msg_dict.update(search_fields[message_id])
+        if file_content_fields is not None:
+            msg_dict["file_content_matches"] = file_content_fields.get(message_id, [])
         if "edit_history" in msg_dict:
             # In addition to computing last_moved_timestamp, we recompute
             # last_edit_timestamp, because the logic powering the database

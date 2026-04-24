@@ -1,5 +1,6 @@
 from collections.abc import Iterable
-from typing import Annotated
+from html import escape as html_escape
+from typing import Annotated, Any
 
 from django.conf import settings
 from django.contrib.auth.models import AnonymousUser
@@ -7,7 +8,8 @@ from django.db import connection, transaction
 from django.http import HttpRequest, HttpResponse
 from django.utils.translation import gettext as _
 from pydantic import Json, NonNegativeInt
-from sqlalchemy.sql import column, func
+from sqlalchemy.dialects import postgresql
+from sqlalchemy.sql import column, func, literal, literal_column, select, table
 from sqlalchemy.types import Integer, Text
 
 from zerver.context_processors import get_valid_realm_from_request
@@ -18,6 +20,8 @@ from zerver.lib.exceptions import (
 )
 from zerver.lib.message import get_first_visible_message_id, messages_for_ids
 from zerver.lib.narrow import (
+    TS_START,
+    TS_STOP,
     NarrowParameter,
     add_narrow_conditions,
     clean_narrow_for_message_fetch,
@@ -86,6 +90,115 @@ def get_search_fields(
         "match_content": highlight_string(rendered_content, content_matches),
         MATCH_TOPIC: highlight_string(escaped_topic_name, topic_matches),
     }
+
+
+_HL_ESCAPED_START = html_escape(TS_START)  # &lt;ts-match&gt;
+_HL_ESCAPED_STOP = html_escape(TS_STOP)  # &lt;/ts-match&gt;
+
+# Must match FragmentDelimiter=... in the ts_headline options string below; picked so
+# it is vanishingly unlikely to appear in extracted file text.
+_FILE_CONTENT_HEADLINE_FRAG_DELIM = "ZULIP_FC_FRAG"
+
+
+def _snippet_to_html(raw: str) -> str:
+    """Convert a ts_headline result (with TS_START/TS_STOP markers) to safe HTML.
+
+    The raw snippet is plain text from extracted_text, so HTML-escaping it first
+    is safe. We then replace the escaped markers with highlight spans.
+    """
+    return (
+        html_escape(raw)
+        .replace(_HL_ESCAPED_START, '<span class="highlight">')
+        .replace(_HL_ESCAPED_STOP, "</span>")
+    )
+
+
+def _headline_excerpts_to_html(raw: str) -> str:
+    """Build HTML for one attachment's ts_headline output, including up to 3 fragments
+    with a visual divider between excerpts when there are multiple.
+    """
+    if _FILE_CONTENT_HEADLINE_FRAG_DELIM in raw:
+        parts = [p for p in raw.split(_FILE_CONTENT_HEADLINE_FRAG_DELIM) if p.strip()]
+    else:
+        parts = [raw] if raw else []
+
+    if not parts:
+        return ""
+
+    frag_divs: list[str] = []
+    for part in parts:
+        frag_divs.append(
+            f'<div class="file-content-match-fragment">{_snippet_to_html(part)}</div>'
+        )
+    separator = (
+        '<div class="file-content-fragment-separator" role="separator" aria-hidden="true"></div>'
+    )
+    return separator.join(frag_divs)
+
+
+def get_file_content_snippets(
+    message_ids: list[int],
+    operand: str,
+    sa_conn: Any,
+) -> dict[int, list[dict[str, str]]]:
+    """For each message_id, return a list of {filename, path_id, snippet} dicts
+    for attachments whose extracted text matches the given operand."""
+    tsquery = func.plainto_tsquery(literal("zulip.english_us_search"), literal(operand))
+    options = (
+        f"MaxFragments=3, MaxWords=25, MinWords=10, "
+        f"FragmentDelimiter={_FILE_CONTENT_HEADLINE_FRAG_DELIM}, "
+        f"StartSel={TS_START}, StopSel={TS_STOP}"
+    )
+    snippet_col = func.ts_headline(
+        literal("zulip.english_us_search"),
+        literal_column("zerver_attachmentcontent.extracted_text", Text),
+        tsquery,
+        literal(options),
+        type_=Text,
+    ).label("snippet")
+
+    query = (
+        select(
+            literal_column("zerver_attachment_messages.message_id", Integer).label("message_id"),
+            literal_column("zerver_attachment.file_name", Text).label("file_name"),
+            literal_column("zerver_attachment.path_id", Text).label("path_id"),
+            snippet_col,
+        )
+        .select_from(table("zerver_attachment_messages"))
+        .join(
+            table("zerver_attachment"),
+            literal_column("zerver_attachment_messages.attachment_id", Integer)
+            == literal_column("zerver_attachment.id", Integer),
+        )
+        .join(
+            table("zerver_attachmentcontent"),
+            literal_column("zerver_attachmentcontent.attachment_id", Integer)
+            == literal_column("zerver_attachment.id", Integer),
+        )
+        .where(
+            literal_column("zerver_attachment_messages.message_id", Integer).in_(message_ids)
+        )
+        .where(
+            literal_column("zerver_attachmentcontent.extraction_status", Integer) == literal(2)
+        )
+        .where(
+            literal_column("zerver_attachmentcontent.search_tsvector", postgresql.TSVECTOR).op(
+                "@@"
+            )(tsquery)
+        )
+    )
+
+    result: dict[int, list[dict[str, str]]] = {}
+    for row in sa_conn.execute(query).mappings():
+        msg_id = row["message_id"]
+        result.setdefault(msg_id, []).append(
+            {
+                "filename": row["file_name"],
+                "path_id": row["path_id"],
+                "snippet": _headline_excerpts_to_html(row["snippet"]),
+            }
+        )
+    return result
 
 
 def clean_narrow_for_web_public_api(
@@ -299,10 +412,23 @@ def get_messages_backend(
                     rendered_content, escaped_topic_name, content_matches, topic_matches
                 )
 
+        file_content_fields: dict[int, list[dict[str, str]]] = {}
+        if narrow and result_message_ids:
+            fc_operand = next(
+                (t.operand for t in narrow if t.operator == "file-content" and not t.negated),
+                None,
+            )
+            if fc_operand:
+                with get_sqlalchemy_connection() as sa_conn:
+                    file_content_fields = get_file_content_snippets(
+                        result_message_ids, fc_operand, sa_conn
+                    )
+
         message_list = messages_for_ids(
             message_ids=result_message_ids,
             user_message_flags=user_message_flags,
             search_fields=search_fields,
+            file_content_fields=file_content_fields,
             apply_markdown=apply_markdown,
             client_gravatar=client_gravatar,
             allow_empty_topic_name=allow_empty_topic_name,

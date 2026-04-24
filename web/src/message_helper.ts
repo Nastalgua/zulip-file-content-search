@@ -67,12 +67,13 @@ export function process_new_message(opts: NewMessage): ProcessedMessage {
     // messages.
     const cached_msg_data = message_store.get_cached_message(opts.raw_message.id);
     if (cached_msg_data !== undefined) {
-        // Copy the match topic and content over if they exist on
-        // the new message. Local messages will never have match metadata,
+        // Copy the match topic, content, and file-content snippets over if they
+        // exist on the new message. Local messages will never have match metadata,
         // since we need the server to calculate it.
         if (
             opts.type === "server_message" &&
-            util.get_match_topic(opts.raw_message) !== undefined
+            (util.get_match_topic(opts.raw_message) !== undefined ||
+                opts.raw_message.file_content_matches !== undefined)
         ) {
             assert(cached_msg_data.type === "server_message");
             util.set_match_data(cached_msg_data.message, opts.raw_message);

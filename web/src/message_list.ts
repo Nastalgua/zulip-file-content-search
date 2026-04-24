@@ -293,6 +293,10 @@ export class MessageList {
         return this.data.is_keyword_search();
     }
 
+    is_file_content_search(): boolean {
+        return this.data.is_file_content_search();
+    }
+
     can_mark_messages_read(): boolean {
         /* Automatically marking messages as read can be disabled for
            three different reasons:
