@@ -24,7 +24,7 @@ from zerver.models import Attachment, AttachmentContent
 SEARCH_TERM = "quarterly"
 
 # Scales at which performance is measured, in increasing order.
-TEST_SIZES = [100, 500, 2000]
+TEST_SIZES = [100, 500, 100000]
 
 # Vocabulary used to generate realistic filler text around the search term.
 WORD_POOL = [
