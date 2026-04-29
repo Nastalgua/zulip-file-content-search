@@ -1104,14 +1104,20 @@ export class MessageListView {
         return render_single_message(msg_to_render);
     }
 
-    _render_group(opts: {message_groups: MessageGroup[]; use_match_properties: boolean}): JQuery {
+    _render_group(opts: {
+        message_groups: MessageGroup[];
+        use_match_properties: boolean;
+        use_file_content_match_properties: boolean;
+    }): JQuery {
         const message_groups = opts.message_groups;
         const use_match_properties = opts.use_match_properties;
+        const use_file_content_match_properties = opts.use_file_content_match_properties;
 
         return $(
             render_message_group({
                 message_groups,
                 use_match_properties,
+                use_file_content_match_properties,
                 message_list_id: this.list.id,
             }),
         );
@@ -1212,6 +1218,7 @@ export class MessageListView {
             $rendered_groups = this._render_group({
                 message_groups: message_actions.prepend_groups,
                 use_match_properties: this.list.is_keyword_search(),
+                use_file_content_match_properties: this.list.is_file_content_search(),
             });
 
             $dom_messages = $rendered_groups.find(".message_row");
@@ -1238,6 +1245,7 @@ export class MessageListView {
                 $rendered_groups = this._render_group({
                     message_groups: [message_group],
                     use_match_properties: this.list.is_keyword_search(),
+                    use_file_content_match_properties: this.list.is_file_content_search(),
                 });
 
                 $dom_messages = $rendered_groups.find(".message_row");
@@ -1274,6 +1282,7 @@ export class MessageListView {
             $rendered_groups = this._render_group({
                 message_groups: message_actions.append_groups,
                 use_match_properties: this.list.is_keyword_search(),
+                use_file_content_match_properties: this.list.is_file_content_search(),
             });
 
             $dom_messages = $rendered_groups.find(".message_row");

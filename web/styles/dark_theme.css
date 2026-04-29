@@ -242,6 +242,12 @@
         background-color: hsl(51deg 100% 23%);
     }
 
+    /* File-content snippets: ensure text on the dark search highlight is high-contrast
+       (parent uses --color-text-message-default; these spans need near-white on gold). */
+    .message_content .file-content-match-snippet .highlight {
+        color: hsl(0deg 0% 96%);
+    }
+
     .searching-for-more-topics img {
         filter: invert(100%);
     }

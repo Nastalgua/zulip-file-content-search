@@ -13,9 +13,18 @@ import * as util from "./util.ts";
 
 const stored_messages = new Map<number, ProcessedMessage>();
 
+const file_content_match_schema = z.object({
+    filename: z.string(),
+    path_id: z.string(),
+    snippet: z.string(),
+});
+
+export type FileContentMatch = z.infer<typeof file_content_match_schema>;
+
 const matched_message_schema = z.object({
     match_content: z.optional(z.string()),
     match_subject: z.optional(z.string()),
+    file_content_matches: z.optional(z.array(file_content_match_schema)),
 });
 
 export type MatchedMessage = z.infer<typeof matched_message_schema>;

@@ -61,6 +61,15 @@
         {{else}}
             {{rendered_markdown msg/content}}
         {{/if}}
+        {{#if use_file_content_match_properties}}
+            {{#unless (eq msg/file_content_matches.length 0)}}
+                <div class="file-content-matches">
+                    {{#each msg/file_content_matches}}
+                        <div class="file-content-match-snippet">{{{snippet}}}</div>
+                    {{/each}}
+                </div>
+            {{/unless}}
+        {{/if}}
     </div>
     {{else}}
     <div class="message_content rendered_markdown">
