@@ -112,7 +112,7 @@ def _extract_and_store(
         extraction_status=ExtractionStatus.SUCCESS,
     )
     AttachmentContent.objects.filter(attachment_id=attachment.id).update(
-        search_tsvector=SearchVector("extracted_text", config="english"),
+        search_tsvector=SearchVector("extracted_text", config="zulip.english_us_search"),
     )
 
 
