@@ -262,3 +262,86 @@ class FileContentNarrowTest(ZulipTestCase):
 
         result_ids = self._get_message_ids_for_narrow("quarterly")
         self.assertNotIn(msg_id, result_ids)
+
+    def test_prefix_matching(self) -> None:
+        """
+        A partial word operand should match documents containing words that
+        start with that prefix. This is handled by the to_tsquery :* operator
+        combined with plainto_tsquery via OR in by_file_content.
+        """
+        # Message whose attachment contains words starting with the prefix
+        msg_match_id = self.send_stream_message(
+            self.user_profile, "Denmark", "prefix match attachment"
+        )
+        attachment_match = self._create_attachment(
+            msg_match_id, "prefix_match.pdf", "a/b/c/prefix_match.pdf"
+        )
+        self._create_attachment_content(
+            attachment_match, "We will continue the project and make continuing progress"
+        )
+
+        # Message whose attachment does not contain any words starting with the prefix
+        msg_no_match_id = self.send_stream_message(
+            self.user_profile, "Denmark", "no prefix match attachment"
+        )
+        attachment_no_match = self._create_attachment(
+            msg_no_match_id, "prefix_no_match.pdf", "a/b/c/prefix_no_match.pdf"
+        )
+        self._create_attachment_content(
+            attachment_no_match, "This document discusses quarterly financial results"
+        )
+
+        result_ids = self._get_message_ids_for_narrow("contin")
+
+        self.assertIn(msg_match_id, result_ids)
+        self.assertNotIn(msg_no_match_id, result_ids)
+
+    def test_prefix_matching_multi_word(self) -> None:
+        """
+        Prefix matching should work across all tokens in a multi-word operand.
+        Each token gets :* appended, so all prefixes must be present.
+        """
+        msg_both_id = self.send_stream_message(
+            self.user_profile, "Denmark", "both prefixes match"
+        )
+        attachment_both = self._create_attachment(
+            msg_both_id, "both_prefix.pdf", "a/b/c/both_prefix.pdf"
+        )
+        self._create_attachment_content(
+            attachment_both, "The financial reporting continues next quarter"
+        )
+
+        # Only one of the two prefix tokens is present
+        msg_one_id = self.send_stream_message(
+            self.user_profile, "Denmark", "one prefix matches"
+        )
+        attachment_one = self._create_attachment(
+            msg_one_id, "one_prefix.pdf", "a/b/c/one_prefix.pdf"
+        )
+        self._create_attachment_content(
+            attachment_one, "The financial summary is ready"
+        )
+
+        result_ids = self._get_message_ids_for_narrow("fin contin")
+
+        self.assertIn(msg_both_id, result_ids)
+        self.assertNotIn(msg_one_id, result_ids)
+
+    def test_prefix_matching_falls_back_to_stemming(self) -> None:
+        """
+        A complete word operand should still match via stemming even when
+        the prefix path is also active.
+        """
+        msg_id = self.send_stream_message(
+            self.user_profile, "Denmark", "stemming still works"
+        )
+        attachment = self._create_attachment(
+            msg_id, "stemming.pdf", "a/b/c/stemming_prefix.pdf"
+        )
+
+        self._create_attachment_content(
+            attachment, "The team reported results and filed three reports"
+        )
+
+        result_ids = self._get_message_ids_for_narrow("report")
+        self.assertIn(msg_id, result_ids)
