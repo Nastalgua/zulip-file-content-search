@@ -252,6 +252,22 @@ def ts_locs_array(
     )
 
 
+def file_content_search_tsquery(operand: str) -> ClauseElement:
+    plain_tsquery = func.plainto_tsquery(
+        literal("zulip.english_us_search"), literal(operand)
+    )
+
+    tokens = re.findall(r"\w+", operand)
+    if not tokens:
+        return plain_tsquery
+
+    tsquery_string = " & ".join(f"{token}:*" for token in tokens)
+    prefix_tsquery = func.to_tsquery(
+        literal("zulip.english_us_search"), literal(tsquery_string)
+    )
+    return plain_tsquery.op("||")(prefix_tsquery)
+
+
 class NarrowBuilder:
     """
     Build up a SQLAlchemy query to find messages matching a narrow.
@@ -749,22 +765,7 @@ class NarrowBuilder:
     def by_file_content(
         self, query: Select, operand: str, maybe_negate: ConditionTransform
     ) -> Select:
-        import re
-
-        plain_tsquery = func.plainto_tsquery(
-            literal("zulip.english_us_search"), literal(operand)
-        )
-
-        tokens = re.findall(r'\w+', operand)
-        if tokens:
-            tsquery_string = " & ".join(f"{token}:*" for token in tokens)
-            prefix_tsquery = func.to_tsquery(
-                literal("zulip.english_us_search"), literal(tsquery_string)
-            )
-            
-            combined_tsquery = plain_tsquery.op("||")(prefix_tsquery)
-        else:
-            combined_tsquery = plain_tsquery
+        combined_tsquery = file_content_search_tsquery(operand)
 
         if self.msg_id_column.name == "message_id":
             msg_id_ref = literal_column("zerver_usermessage.message_id", Integer)

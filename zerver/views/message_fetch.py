@@ -25,6 +25,7 @@ from zerver.lib.narrow import (
     NarrowParameter,
     add_narrow_conditions,
     clean_narrow_for_message_fetch,
+    file_content_search_tsquery,
     fetch_messages,
     get_base_query_for_search,
     is_spectator_compatible,
@@ -143,7 +144,7 @@ def get_file_content_snippets(
 ) -> dict[int, list[dict[str, str]]]:
     """For each message_id, return a list of {filename, path_id, snippet} dicts
     for attachments whose extracted text matches the given operand."""
-    tsquery = func.plainto_tsquery(literal("zulip.english_us_search"), literal(operand))
+    tsquery = file_content_search_tsquery(operand)
     options = (
         f"MaxFragments=3, MaxWords=25, MinWords=10, "
         f"FragmentDelimiter={_FILE_CONTENT_HEADLINE_FRAG_DELIM}, "
