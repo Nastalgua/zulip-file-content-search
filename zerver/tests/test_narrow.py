@@ -1,4 +1,5 @@
 from django.db import connection
+import orjson
 
 from zerver.lib.narrow import NarrowParameter, add_narrow_conditions, get_base_query_for_search
 from zerver.lib.sqlalchemy_utils import get_sqlalchemy_connection
@@ -345,3 +346,35 @@ class FileContentNarrowTest(ZulipTestCase):
 
         result_ids = self._get_message_ids_for_narrow("report")
         self.assertIn(msg_id, result_ids)
+
+    def test_prefix_match_highlighted_in_file_content_snippet(self) -> None:
+        self.login_user(self.user_profile)
+
+        msg_id = self.send_stream_message(
+            self.user_profile, "Denmark", "prefix highlight in snippet"
+        )
+        attachment = self._create_attachment(
+            msg_id, "snippet_prefix.pdf", "a/b/c/snippet_prefix.pdf"
+        )
+        self._create_attachment_content(
+            attachment, "We will continue the project and make continuing progress"
+        )
+
+        narrow = [
+            dict(operator="stream", operand="Denmark"),
+            dict(operator="file-content", operand="contin"),
+        ]
+        result = self.client_get(
+            "/json/messages",
+            {
+                "anchor": msg_id,
+                "num_before": 0,
+                "num_after": 0,
+                "narrow": orjson.dumps(narrow).decode(),
+            },
+        )
+        messages = self.assert_json_success(result)["messages"]
+        self.assert_length(messages, 1)
+        file_content_matches = messages[0]["file_content_matches"]
+        self.assert_length(file_content_matches, 1)
+        self.assertIn('<span class="highlight">', file_content_matches[0]["snippet"])

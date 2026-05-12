@@ -8278,6 +8278,26 @@ paths:
                                     HTML-escaped topic of a queried message that matches the narrow, with
                                     `<span class="highlight">` elements wrapping the matches for the
                                     search keywords.
+                                file_content_matches:
+                                  type: array
+                                  description: |
+                                    Only present when the narrow includes a non-negated `file-content`
+                                    filter.
+
+                                    One entry per attachment on this message whose extracted text
+                                    matched the filter. The `snippet` value is HTML-safe text with
+                                    `<span class="highlight">` elements wrapping matches from the
+                                    search excerpt generator.
+                                  items:
+                                    type: object
+                                    additionalProperties: false
+                                    properties:
+                                      filename:
+                                        type: string
+                                      path_id:
+                                        type: string
+                                      snippet:
+                                        type: string
                     example:
                       {
                         "anchor": 21,
