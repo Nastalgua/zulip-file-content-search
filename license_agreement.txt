@@ -1,0 +1,7 @@
+The members of 3 agree that the contributions made in this project shall remain private to CS 5150 and will not be published under Zulip's open-source license or contributed to the official Zulip repository.
+Signed:
+Yiyi Wu
+David Kim
+Matthew Chen
+Ivy Zhou
+Gilbert Ye
